@@ -1,0 +1,11 @@
+[Unit]
+Description=My App
+
+[Service]
+WorkingDirectory=/
+ExecStart=java -jar /opt/app.jar
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

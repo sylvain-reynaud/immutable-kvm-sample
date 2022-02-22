@@ -2,7 +2,7 @@ packer {
   required_plugins {
     sshkey = {
       version = ">= 0.1.0"
-      source = "github.com/ivoronin/sshkey"
+      source  = "github.com/ivoronin/sshkey"
     }
   }
 }
@@ -46,7 +46,6 @@ locals {
   timestamp = regex_replace(timestamp(), "[- TZ:]", "")
 }
 
-
 build {
   description = <<EOF
 This builder builds a QEMU image from a Debian "netinst" CD ISO file.
@@ -56,8 +55,28 @@ EOF
   sources = ["source.qemu.debian"]
 
   provisioner "file" {
+    source      = "app/resolv.conf"
+    destination = "/tmp/resolv.conf"
+  }
+
+  provisioner "file" {
+    source      = "app/hosts"
+    destination = "/tmp/hosts"
+  }
+
+  provisioner "file" {
     source      = "configure/configure-qemu-image.sh"
     destination = "/tmp/configure-qemu-image.sh"
+  }
+
+  provisioner "file" {
+    source      = "app/app.jar"
+    destination = "/tmp/app.jar"
+  }
+
+  provisioner "file" {
+    source      = "app/app.service"
+    destination = "/tmp/app.service"
   }
 
   provisioner "shell" {
@@ -77,17 +96,15 @@ EOF
     ]
   }
 
-
   provisioner "ansible-local" {
     playbook_file = "ansible/playbook.yml"
-    playbook_dir = "ansible"
+    playbook_dir  = "ansible"
   }
 
   post-processor "manifest" {
     keep_input_artifact = true
   }
 }
-
 
 source qemu "debian" {
   iso_url      = "${var.source_iso}"
@@ -100,20 +117,20 @@ source qemu "debian" {
   disk_size   = 8000
   accelerator = "kvm"
 
-  headless = false
+  headless = true
 
-  http_port_min  = 9990
-  http_port_max  = 9999
-  http_content = { "/preseed.cfg" = templatefile("configure/preseed.cfg.pkrtpl", { "ssh_public_key" : data.sshkey.install.public_key, "username": var.username, "password": var.password }) }
+  http_port_min = 9990
+  http_port_max = 9999
+  http_content  = { "/preseed.cfg" = templatefile("configure/preseed.cfg.pkrtpl", { "ssh_public_key" : data.sshkey.install.public_key, "username" : var.username, "password" : var.password }) }
 
   # SSH ports to redirect to the VM being built
   host_port_min = 2222
   host_port_max = 2229
   # This user is configured in the preseed file.
   #ssh_password     = "${var.password}"
-  ssh_username     = "${var.username}"
-  ssh_wait_timeout = "1000s"
-  ssh_private_key_file      = data.sshkey.install.private_key_path  
+  ssh_username              = "${var.username}"
+  ssh_wait_timeout          = "1000s"
+  ssh_private_key_file      = data.sshkey.install.private_key_path
   ssh_clear_authorized_keys = true
 
   shutdown_command = "sudo -S /sbin/shutdown -hP now"
